@@ -1,11 +1,11 @@
-use apres::{ MIDI };
+use apres::{ MIDI, ApresError };
 use apres::MIDIEvent::{ NoteOn, NoteOff, SetTempo };
 
 // (id, time, note, vel)
 pub type Point = (usize, f32, f32, f32);
 pub type Floww = Vec<Point>;
 
-fn midi_to_floww(midi: MIDI) -> Floww{
+pub fn midi_to_floww(midi: MIDI) -> Floww{
     let ppqn = midi.get_ppqn() as f32;
     let mut time_mult = 1.0; // 60bpm per default
     let mut floww = Vec::new();
@@ -26,6 +26,13 @@ fn midi_to_floww(midi: MIDI) -> Floww{
         }
     }
     floww
+}
+
+pub fn read_floww_from_midi(path: &str) -> Result<Floww, ApresError>{
+    match MIDI::from_path(path){
+        Ok(midi) => { Ok(midi_to_floww(midi)) },
+        Err(e) => Err(e),
+    }
 }
 
 #[cfg(test)]
