@@ -28,7 +28,6 @@ fn midi_to_floww(midi: MIDI) -> Floww{
     floww
 }
 
-
 #[cfg(test)]
 mod tests {
     #[test]
