@@ -11,8 +11,8 @@ General
 
 Streaming
 
-- [ ] Floww stream encoding
-- [ ] Floww stream decoding
-- [ ] Messages
-- [ ] Tracks
-- [ ] Simple notes
+- [x] Floww stream encoding
+- [x] Floww stream decoding
+- [x] Messages
+- [x] Tracks
+- [x] Simple notes
