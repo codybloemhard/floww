@@ -1,12 +1,71 @@
 use apres::{ MIDI, ApresError };
 use apres::MIDIEvent::{ NoteOn, NoteOff, SetTempo };
 use serde::{ Serialize, Deserialize };
+use fnrs::MutFunc;
 
 use std::collections::{ HashMap };
 
 // (id, time, note, vel)
 pub type Point = (usize, f32, f32, f32);
 pub type Floww = Vec<Point>;
+
+#[derive(Clone,Default)]
+pub struct FlowwSheet{
+    flowws: Vec<Floww>,
+    names: Vec<String>,
+    map: HashMap<String, usize>,
+}
+
+impl FlowwSheet{
+    pub fn new() -> Self{
+        Self::default()
+    }
+
+    pub fn add(&mut self, floww: Floww, name: String){
+        let index = self.flowws.len();
+        self.flowws.push(floww);
+        self.map.insert(name.clone(), index);
+        self.names.push(name);
+    }
+
+    pub fn get_floww_ref_by_name(&self, name: &str) -> &[Point]{
+        if let Some(index) = self.map.get(name){
+            &self.flowws[*index]
+        } else {
+            &[]
+        }
+    }
+
+    pub fn get_names(&self) -> Vec<String>{
+        self.names.clone()
+    }
+
+    pub fn reset(&mut self, name: &str, new: Floww) -> bool{
+        if let Some(index) = self.map.get(name){
+            self.flowws[*index] = new;
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn to_floww_packets(self) -> Vec<FlowwPacket>{
+        let mut res = Vec::new();
+        for (floww, name) in self.flowws.into_iter().zip(self.names.into_iter()){
+            res.push(FlowwPacket::Track(name));
+            for point in floww{
+                res.push(FlowwPacket::Point(point));
+            }
+        }
+        res
+    }
+
+    pub fn serialize(self) -> Result<Vec<u8>, Box<bincode::ErrorKind>>{
+        let x = bincode::serialize(&self.flowws)?;
+        let y = bincode::serialize(&self.names)?;
+        Ok(x.conc(y))
+    }
+}
 
 pub fn midi_to_floww(midi: MIDI) -> Floww{
     let ppqn = midi.get_ppqn() as f32;
