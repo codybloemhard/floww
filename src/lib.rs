@@ -12,6 +12,7 @@ pub type Floww = Vec<Point>;
 pub trait Timed{
     fn time(&self) -> f32;
     fn time_mut(&mut self) -> &mut f32;
+    fn end(&self) -> f32;
 }
 
 impl Timed for Point{
@@ -23,6 +24,11 @@ impl Timed for Point{
     #[inline]
     fn time_mut(&mut self) -> &mut f32{
         &mut self.1
+    }
+
+    #[inline]
+    fn end(&self) -> f32{
+        self.1
     }
 }
 
@@ -37,7 +43,7 @@ pub trait TimedVec{
     fn time_shifted(self, t: f32) -> Self;
     fn started_from_zero(self) -> Self;
     fn merged(self, other: Self) -> Self;
-    fn fused(self, othre: Self) -> Self;
+    fn fused(self, other: Self) -> Self;
 }
 
 impl<T: Timed> TimedVec for Vec<T>{
@@ -75,7 +81,7 @@ impl<T: Timed> TimedVec for Vec<T>{
         if l == 0 {
             *self = other;
         } else {
-            let last_t = self[l - 1].time();
+            let last_t = self[l - 1].end();
             self.extend(other.time_shifted(last_t));
         }
     }
