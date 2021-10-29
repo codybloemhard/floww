@@ -9,56 +9,73 @@ use std::collections::{ HashMap };
 pub type Point = (usize, f32, f32, f32);
 pub type Floww = Vec<Point>;
 
-pub trait FlowwOps{
+pub trait Timed{
+    fn time(&self) -> f32;
+    fn time_mut(&mut self) -> &mut f32;
+}
+
+impl Timed for Point{
+    #[inline]
+    fn time(&self) -> f32{
+        self.1
+    }
+
+    #[inline]
+    fn time_mut(&mut self) -> &mut f32{
+        &mut self.1
+    }
+}
+
+pub trait TimedVec{
     fn sort(&mut self);
     fn shift_time(&mut self, t: f32);
     fn start_from_zero(&mut self);
-    fn merge(&mut self, other: Floww);
-    fn fuse(&mut self, other: Floww);
+    fn merge(&mut self, other: Self);
+    fn fuse(&mut self, other: Self);
 
     fn sorted(self) -> Self;
     fn time_shifted(self, t: f32) -> Self;
     fn started_from_zero(self) -> Self;
-    fn merged(self, other: Floww) -> Self;
-    fn fused(self, othre: Floww) -> Self;
+    fn merged(self, other: Self) -> Self;
+    fn fused(self, othre: Self) -> Self;
 }
 
-impl FlowwOps for Floww{
+impl<T: Timed> TimedVec for Vec<T>{
     fn sort(&mut self){
-        self.sort_by(|a,b| a.1.partial_cmp(&b.1).unwrap());
+        self.sort_by(|a,b| a.time().partial_cmp(&b.time()).unwrap());
     }
 
     fn shift_time(&mut self, t: f32){
         let begin_t = if let Some(p) = self.iter().next(){
-            p.1
+            p.time()
         } else {
             return;
         };
         let shift = t.max(-begin_t);
-        self.iter_mut().for_each(|p| p.1 += shift);
+        self.iter_mut().for_each(|p| *p.time_mut() += shift);
     }
 
     fn start_from_zero(&mut self){
         let begin_t = if let Some(p) = self.iter().next(){
-            p.1
+            p.time()
         } else {
             return;
         };
         let shift = -begin_t;
-        self.iter_mut().for_each(|p| p.1 += shift);
+        self.iter_mut().for_each(|p| *p.time_mut() += shift);
     }
 
-    fn merge(&mut self, other: Floww){
+    fn merge(&mut self, other: Self){
         self.extend(other);
         self.sort();
     }
 
-    fn fuse(&mut self, other: Floww){
+    fn fuse(&mut self, other: Self){
         let l = self.len();
         if l == 0 {
             *self = other;
         } else {
-            let last_t = self[l - 1].1;
+            let last_t = self[l - 1].time();
             self.extend(other.time_shifted(last_t));
         }
     }
@@ -78,12 +95,12 @@ impl FlowwOps for Floww{
         self
     }
 
-    fn merged(mut self, other: Floww) -> Floww{
+    fn merged(mut self, other: Self) -> Self{
         self.merge(other);
         self
     }
 
-    fn fused(mut self, other: Floww) -> Self{
+    fn fused(mut self, other: Self) -> Self{
         self.fuse(other);
         self
     }
