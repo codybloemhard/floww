@@ -13,6 +13,7 @@ pub trait Timed{
     fn time(&self) -> f32;
     fn time_mut(&mut self) -> &mut f32;
     fn end(&self) -> f32;
+    fn scale(&mut self, factor: f32);
 }
 
 impl Timed for Point{
@@ -30,18 +31,24 @@ impl Timed for Point{
     fn end(&self) -> f32{
         self.1
     }
+
+    fn scale(&mut self, factor: f32){
+        self.1 *= factor;
+    }
 }
 
 pub trait TimedVec{
     fn sort(&mut self);
     fn shift_time(&mut self, t: f32);
     fn start_from_zero(&mut self);
+    fn scale(&mut self, factor: f32);
     fn merge(&mut self, other: Self);
     fn fuse(&mut self, other: Self);
 
     fn sorted(self) -> Self;
     fn time_shifted(self, t: f32) -> Self;
     fn started_from_zero(self) -> Self;
+    fn scaled(self, factor: f32) -> Self;
     fn merged(self, other: Self) -> Self;
     fn fused(self, other: Self) -> Self;
 }
@@ -71,6 +78,10 @@ impl<T: Timed> TimedVec for Vec<T>{
         self.iter_mut().for_each(|p| *p.time_mut() += shift);
     }
 
+    fn scale(&mut self, factor: f32){
+        self.iter_mut().for_each(|p| p.scale(factor));
+    }
+
     fn merge(&mut self, other: Self){
         self.extend(other);
         self.sort();
@@ -98,6 +109,11 @@ impl<T: Timed> TimedVec for Vec<T>{
 
     fn started_from_zero(mut self) -> Self{
         self.start_from_zero();
+        self
+    }
+
+    fn scaled(mut self, factor: f32) -> Self{
+        self.scale(factor);
         self
     }
 
@@ -313,5 +329,8 @@ mod tests {
         let g = f.fused(vec![(3, 1.0, 0.0, 0.0)]);
         assert_eq!(g, vec![(1, 0.0, 0.0, 0.0), (2, 0.5, 0.0, 0.0),
                             (0, 1.0, 0.0, 0.0), (3, 2.0, 0.0, 0.0)]);
+        let h = g.scaled(2.0);
+        assert_eq!(h, vec![(1, 0.0, 0.0, 0.0), (2, 1.0, 0.0, 0.0),
+                            (0, 2.0, 0.0, 0.0), (3, 4.0, 0.0, 0.0)]);
     }
 }
