@@ -9,6 +9,86 @@ use std::collections::{ HashMap };
 pub type Point = (usize, f32, f32, f32);
 pub type Floww = Vec<Point>;
 
+pub trait FlowwOps{
+    fn sort(&mut self);
+    fn shift_time(&mut self, t: f32);
+    fn start_from_zero(&mut self);
+    fn merge(&mut self, other: Floww);
+    fn fuse(&mut self, other: Floww);
+
+    fn sorted(self) -> Self;
+    fn time_shifted(self, t: f32) -> Self;
+    fn started_from_zero(self) -> Self;
+    fn merged(self, other: Floww) -> Self;
+    fn fused(self, othre: Floww) -> Self;
+}
+
+impl FlowwOps for Floww{
+    fn sort(&mut self){
+        self.sort_by(|a,b| a.1.partial_cmp(&b.1).unwrap());
+    }
+
+    fn shift_time(&mut self, t: f32){
+        let begin_t = if let Some(p) = self.iter().next(){
+            p.1
+        } else {
+            return;
+        };
+        let shift = t.max(-begin_t);
+        self.iter_mut().for_each(|p| p.1 += shift);
+    }
+
+    fn start_from_zero(&mut self){
+        let begin_t = if let Some(p) = self.iter().next(){
+            p.1
+        } else {
+            return;
+        };
+        let shift = -begin_t;
+        self.iter_mut().for_each(|p| p.1 += shift);
+    }
+
+    fn merge(&mut self, other: Floww){
+        self.extend(other);
+        self.sort();
+    }
+
+    fn fuse(&mut self, other: Floww){
+        let l = self.len();
+        if l == 0 {
+            *self = other;
+        } else {
+            let last_t = self[l - 1].1;
+            self.extend(other.time_shifted(last_t));
+        }
+    }
+
+    fn sorted(mut self) -> Self{
+        self.sort();
+        self
+    }
+
+    fn time_shifted(mut self, t: f32) -> Self{
+        self.shift_time(t);
+        self
+    }
+
+    fn started_from_zero(mut self) -> Self{
+        self.start_from_zero();
+        self
+    }
+
+    fn merged(mut self, other: Floww) -> Floww{
+        self.merge(other);
+        self
+    }
+
+    fn fused(mut self, other: Floww) -> Self{
+        self.fuse(other);
+        self
+    }
+}
+
 #[derive(Clone,Default)]
 pub struct FlowwSheet{
     flowws: Vec<Floww>,
@@ -192,5 +272,23 @@ mod tests {
         assert_eq!(messages, Vec::<String>::new());
         assert_eq!(tracks[0], vec![(0, 0.0, 0.25, 1.0), (0, 0.0, 0.75, 1.0), (0, 0.0, 1.0, 1.0)]);
         assert_eq!(tracks[2], vec![(0, 0.0, 1.0, 1.0)]);
+    }
+
+    #[test]
+    fn floww_ops(){
+        let a = vec![(0, 1.0, 0.0, 0.0), (1, 0.0, 0.0, 0.0)];
+        let b = a.sorted();
+        assert_eq!(b, vec![(1, 0.0, 0.0, 0.0), (0, 1.0, 0.0, 0.0)]);
+        let c = b.time_shifted(5.0);
+        assert_eq!(c, vec![(1, 5.0, 0.0, 0.0), (0, 6.0, 0.0, 0.0)]);
+        let d = c.time_shifted(-10.0);
+        assert_eq!(d, vec![(1, 0.0, 0.0, 0.0), (0, 1.0, 0.0, 0.0)]);
+        let e = d.time_shifted(456.0).started_from_zero();
+        assert_eq!(e, vec![(1, 0.0, 0.0, 0.0), (0, 1.0, 0.0, 0.0)]);
+        let f = e.merged(vec![(2, 0.5, 0.0, 0.0)]);
+        assert_eq!(f, vec![(1, 0.0, 0.0, 0.0), (2, 0.5, 0.0, 0.0), (0, 1.0, 0.0, 0.0)]);
+        let g = f.fused(vec![(3, 1.0, 0.0, 0.0)]);
+        assert_eq!(g, vec![(1, 0.0, 0.0, 0.0), (2, 0.5, 0.0, 0.0),
+                            (0, 1.0, 0.0, 0.0), (3, 2.0, 0.0, 0.0)]);
     }
 }

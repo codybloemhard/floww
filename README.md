@@ -8,6 +8,7 @@ General
 - [x] Simple notes: time, length, velocity
 - [x] Parse from midi
 - [ ] Note interpolation
+- [x] Some operations on flowws
 - [x] Floww sheet
 - [x] Serialize/Deserialize floww sheet
 
