@@ -1,9 +1,11 @@
 use apres::{ MIDI, ApresError };
 use apres::MIDIEvent::{ NoteOn, NoteOff, SetTempo };
 use serde::{ Serialize, Deserialize };
+use bincode::ErrorKind;
 use fnrs::MutFunc;
 
 use std::collections::{ HashMap };
+use std::io::Read;
 
 // (id, time, note, vel)
 pub type Point = (usize, f32, f32, f32);
@@ -259,33 +261,12 @@ impl Encodable for Vec<FlowwPacket>{
 }
 
 pub trait DecodeIntoFlowwPackets{
-    fn decode(&self) -> Option<Vec<FlowwPacket>>;
-    fn decoded(self) -> Option<Vec<FlowwPacket>>;
+    fn decoded(self) -> Result<Vec<FlowwPacket>, Box<ErrorKind>>;
 }
 
-impl DecodeIntoFlowwPackets for Vec<u8>{
-    fn decode(&self) -> Option<Vec<FlowwPacket>>{
-        match bincode::deserialize(self){
-            Ok(res) => Some(res),
-            Err(_) => None,
-        }
-    }
-
-    fn decoded(self) -> Option<Vec<FlowwPacket>>{
-        self.decode()
-    }
-}
-
-impl DecodeIntoFlowwPackets for &[u8]{
-    fn decode(&self) -> Option<Vec<FlowwPacket>>{
-        match bincode::deserialize(self){
-            Ok(res) => Some(res),
-            Err(_) => None,
-        }
-    }
-
-    fn decoded(self) -> Option<Vec<FlowwPacket>>{
-        self.decode()
+impl<T: Read> DecodeIntoFlowwPackets for T{
+    fn decoded(self) -> Result<Vec<FlowwPacket>, Box<ErrorKind>>{
+        bincode::deserialize_from(self)
     }
 }
 
@@ -303,7 +284,7 @@ impl FlowwDecoder{
 
     pub fn decode(&mut self, flowws: &mut Vec<Floww>, map: &HashMap<String, usize>, data: &[u8]) -> Vec<String>{
         let mut messages = Vec::new();
-        let batch: Vec<FlowwPacket> = if let Some(res) = data.decoded() { res }
+        let batch: Vec<FlowwPacket> = if let Ok(res) = data.decoded() { res }
         else { return messages; };
         for packet in batch{
             match packet{
@@ -347,32 +328,32 @@ mod tests {
         let a = vec![
             FlowwPacket::Msg("beat".to_string()),
             FlowwPacket::Track("snare".to_string()),
-            FlowwPacket::Point((0, 0.0, 0.25, 1.0)),
-            FlowwPacket::Point((0, 0.0, 0.75, 1.0)),
+            FlowwPacket::Point((0, 1.25, 0.0, 1.0)),
+            FlowwPacket::Point((0, 1.75, 0.0, 1.0)),
             FlowwPacket::Track("kick".to_string()),
-            FlowwPacket::Point((0, 0.0, 0.0 , 1.0)),
-            FlowwPacket::Point((0, 0.0, 0.25, 1.0)),
-            FlowwPacket::Point((0, 0.0, 0.5 , 1.0)),
-            FlowwPacket::Point((0, 0.0, 0.75, 1.0)),
+            FlowwPacket::Point((0, 1.0, 0.0, 1.0)),
+            FlowwPacket::Point((0, 1.25, 0.0, 1.0)),
+            FlowwPacket::Point((0, 1.5, 0.0, 1.0)),
+            FlowwPacket::Point((0, 1.75, 0.0, 1.0)),
         ];
 
         let stream = a.encoded();
         let mut decoder = FlowwDecoder::new();
         let messages = decoder.decode(&mut tracks, &map, &stream);
         assert_eq!(messages, vec!["beat".to_string()]);
-        assert_eq!(tracks[0], vec![(0, 0.0, 0.25, 1.0), (0, 0.0, 0.75, 1.0)]);
-        assert_eq!(tracks[1], vec![(0, 0.0, 0.0, 1.0), (0, 0.0, 0.25, 1.0),
-                                    (0, 0.0, 0.5, 1.0), (0, 0.0, 0.75, 1.0)]);
+        assert_eq!(tracks[0], vec![(0, 1.25, 0.0, 1.0), (0, 1.75, 0.0, 1.0)]);
+        assert_eq!(tracks[1], vec![(0, 1.0, 0.0, 1.0), (0, 1.25, 0.0, 1.0),
+                                    (0, 1.5, 0.0, 1.0), (0, 1.75, 0.0, 1.0)]);
         let b = vec![
             FlowwPacket::Track("snare".to_string()),
-            FlowwPacket::Point((0, 0.0, 1.0, 1.0)),
+            FlowwPacket::Point((0, 2.0, 0.0, 1.0)),
             FlowwPacket::Track("crash".to_string()),
-            FlowwPacket::Point((0, 0.0, 1.0, 1.0)),
+            FlowwPacket::Point((0, 2.0, 0.0, 1.0)),
         ];
         let messages = decoder.decode(&mut tracks, &map, &b.encoded());
         assert_eq!(messages, Vec::<String>::new());
-        assert_eq!(tracks[0], vec![(0, 0.0, 0.25, 1.0), (0, 0.0, 0.75, 1.0), (0, 0.0, 1.0, 1.0)]);
-        assert_eq!(tracks[2], vec![(0, 0.0, 1.0, 1.0)]);
+        assert_eq!(tracks[0], vec![(0, 1.25, 0.0, 1.0), (0, 1.75, 0.0, 1.0), (0, 2.0, 0.0, 1.0)]);
+        assert_eq!(tracks[2], vec![(0, 2.0, 0.0, 1.0)]);
     }
 
     #[test]
