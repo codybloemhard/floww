@@ -270,42 +270,29 @@ impl<T: Read> DecodeIntoFlowwPackets for T{
     }
 }
 
-#[derive(Clone,Copy,Default)]
-pub struct FlowwDecoder{
-    current: usize,
-}
-
-impl FlowwDecoder{
-    pub fn new() -> Self{
-        Self{
-            current: std::usize::MAX,
+pub fn unpacket(flowws: &mut Vec<Floww>, map: &HashMap<String, usize>, packets: Vec<FlowwPacket>) -> Vec<String>{
+    let mut current = 0;
+    let mut messages = Vec::new();
+    for packet in packets{
+        match packet{
+            FlowwPacket::Msg(msg) => {
+                messages.push(msg);
+            },
+            FlowwPacket::Track(name) => {
+                current = if let Some(index) = map.get(&name){
+                    *index
+                } else {
+                    std::usize::MAX
+                };
+            },
+            FlowwPacket::Point(point) => {
+                if current == std::usize::MAX { continue; }
+                if current >= flowws.len() { continue; }
+                flowws[current].push(point);
+            },
         }
     }
-
-    pub fn decode(&mut self, flowws: &mut Vec<Floww>, map: &HashMap<String, usize>, data: &[u8]) -> Vec<String>{
-        let mut messages = Vec::new();
-        let batch: Vec<FlowwPacket> = if let Ok(res) = data.decoded() { res }
-        else { return messages; };
-        for packet in batch{
-            match packet{
-                FlowwPacket::Msg(msg) => {
-                    messages.push(msg);
-                }
-                FlowwPacket::Track(name) => {
-                    self.current = if let Some(index) = map.get(&name){
-                        *index
-                    } else {
-                        std::usize::MAX
-                    };
-                },
-                FlowwPacket::Point(point) => {
-                    if self.current == std::usize::MAX { continue; }
-                    flowws[self.current].push(point);
-                },
-            }
-        }
-        messages
-    }
+    messages
 }
 
 #[cfg(test)]
@@ -337,9 +324,7 @@ mod tests {
             FlowwPacket::Point((0, 1.75, 0.0, 1.0)),
         ];
 
-        let stream = a.encoded();
-        let mut decoder = FlowwDecoder::new();
-        let messages = decoder.decode(&mut tracks, &map, &stream);
+        let messages = unpacket(&mut tracks, &map, a.encoded().decoded().unwrap());
         assert_eq!(messages, vec!["beat".to_string()]);
         assert_eq!(tracks[0], vec![(0, 1.25, 0.0, 1.0), (0, 1.75, 0.0, 1.0)]);
         assert_eq!(tracks[1], vec![(0, 1.0, 0.0, 1.0), (0, 1.25, 0.0, 1.0),
@@ -350,7 +335,7 @@ mod tests {
             FlowwPacket::Track("crash".to_string()),
             FlowwPacket::Point((0, 2.0, 0.0, 1.0)),
         ];
-        let messages = decoder.decode(&mut tracks, &map, &b.encoded());
+        let messages = unpacket(&mut tracks, &map, b.encoded().decoded().unwrap());
         assert_eq!(messages, Vec::<String>::new());
         assert_eq!(tracks[0], vec![(0, 1.25, 0.0, 1.0), (0, 1.75, 0.0, 1.0), (0, 2.0, 0.0, 1.0)]);
         assert_eq!(tracks[2], vec![(0, 2.0, 0.0, 1.0)]);
