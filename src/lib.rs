@@ -218,7 +218,7 @@ pub fn read_floww_from_midi(path: &str) -> Result<Floww, ApresError>{
     }
 }
 
-#[derive(Clone,PartialEq,Debug,Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum FlowwPacket{
     Msg(String),
     Track(String),
