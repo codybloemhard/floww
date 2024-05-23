@@ -270,7 +270,7 @@ impl<T: Read> DecodeIntoFlowwPackets for T{
     }
 }
 
-pub fn unpacket(flowws: &mut Vec<Floww>, map: &HashMap<String, usize>, packets: Vec<FlowwPacket>) -> Vec<String>{
+pub fn unpacket(flowws: &mut [Floww], map: &HashMap<String, usize>, packets: Vec<FlowwPacket>) -> Vec<String>{
     let mut current = 0;
     let mut messages = Vec::new();
     for packet in packets{
